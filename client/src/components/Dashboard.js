@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Grid,
   Paper,
@@ -106,21 +106,7 @@ const Dashboard = () => {
   const [recentItems, setRecentItems] = useState([]);
   const [refreshInterval, setRefreshInterval] = useState(null);
 
-  useEffect(() => {
-    fetchStats();
-    
-    // Set up real-time updates
-    const interval = setInterval(fetchStats, 30000); // Refresh every 30 seconds
-    setRefreshInterval(interval);
-
-    return () => {
-      if (interval) {
-        clearInterval(interval);
-      }
-    };
-  }, []);
-
-  const fetchStats = async () => {
+  const fetchStats = useCallback(async () => {
     try {
       setError(null);
       
@@ -151,20 +137,27 @@ const Dashboard = () => {
       console.error('Error fetching stats:', error);
       setError(error.response?.data?.message || 'Failed to fetch dashboard data');
       
-      // Stop auto-refresh on error
-      if (refreshInterval) {
-        clearInterval(refreshInterval);
-        setRefreshInterval(null);
-      }
-      
-      // Handle specific error cases
       if (error.response?.status === 401) {
         navigate('/login');
       }
     } finally {
       setLoading(false);
     }
-  };
+  }, [navigate]);
+
+  useEffect(() => {
+    fetchStats();
+    
+    // Set up real-time updates
+    const interval = setInterval(fetchStats, 30000); // Refresh every 30 seconds
+    setRefreshInterval(interval);
+
+    return () => {
+      if (interval) {
+        clearInterval(interval);
+      }
+    };
+  }, [fetchStats]);
 
   const statsData = [
     {

@@ -10,7 +10,7 @@ const app = express();
 app.use(express.json());
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
-    ? process.env.CLIENT_URL 
+    ? ['https://whimsical-bombolone-ccd89f.netlify.app', process.env.CLIENT_URL]
     : 'http://localhost:3000',
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
@@ -42,6 +42,14 @@ app.use('/api/letters', lettersRoutes);
 app.use('/api/drive', driveRoutes);
 
 // Health check endpoint
+app.get('/', (req, res) => {
+  res.json({ 
+    message: 'Letter App API is running',
+    environment: process.env.NODE_ENV,
+    timestamp: new Date().toISOString()
+  });
+});
+
 app.get('/api/health', (req, res) => {
   res.json({ status: 'healthy' });
 });

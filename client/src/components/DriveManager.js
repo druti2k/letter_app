@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box,
   Button,
@@ -38,14 +38,14 @@ const DriveManager = ({ onFileSelect }) => {
   const [fileContent, setFileContent] = useState('');
   const [isEditing, setIsEditing] = useState(false);
 
-  const fetchFiles = async (pageNumber = 1) => {
+  const fetchFiles = useCallback(async (pageNumber = 1) => {
     try {
       setLoading(true);
       setError(null);
       const response = await api.get('/api/drive/files', {
         params: {
           pageSize: 10,
-          pageToken: pageNumber === 1 ? null : files[files.length - 1]?.id
+          pageToken: pageNumber === 1 ? null : null
         }
       });
 
@@ -66,11 +66,11 @@ const DriveManager = ({ onFileSelect }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchFiles(page);
-  }, [page]);
+  }, [fetchFiles, page]);
 
   const handleFileClick = async (file) => {
     try {

@@ -1,13 +1,15 @@
 const { Sequelize } = require('sequelize');
+const path = require('path');
 require('dotenv').config();
 
+// Use /data directory in production (Render's persistent disk)
+const dbPath = process.env.NODE_ENV === 'production'
+  ? '/data/database.sqlite'
+  : path.join(__dirname, '../database.sqlite');
+
 const sequelize = new Sequelize({
-  dialect: 'postgres',
-  host: process.env.DB_HOST,
-  port: process.env.DB_PORT,
-  database: process.env.DB_NAME,
-  username: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
+  dialect: 'sqlite',
+  storage: dbPath,
   logging: false,
   pool: {
     max: 5,
