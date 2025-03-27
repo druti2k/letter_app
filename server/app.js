@@ -10,13 +10,37 @@ const app = express();
 
 // Middleware
 app.use(express.json());
+
+// Log all incoming requests
+app.use((req, res, next) => {
+  console.log('Incoming request:', {
+    method: req.method,
+    path: req.path,
+    headers: req.headers,
+    body: req.body
+  });
+  next();
+});
+
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production' 
-    ? ['https://whimsical-bombolone-ccd89f.netlify.app', process.env.CLIENT_URL].filter(Boolean)
-    : 'http://localhost:3000',
+  origin: function(origin, callback) {
+    const allowedOrigins = process.env.NODE_ENV === 'production'
+      ? ['https://whimsical-bombolone-ccd89f.netlify.app', process.env.CLIENT_URL].filter(Boolean)
+      : ['http://localhost:3000', 'http://localhost:3001'];
+    
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.indexOf(origin) === -1) {
+      console.log('Origin not allowed:', origin);
+      console.log('Allowed origins:', allowedOrigins);
+    }
+    
+    return callback(null, true); // Allow all origins during development
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin', 'X-Requested-With'],
   exposedHeaders: ['Set-Cookie'],
   preflightContinue: false,
   optionsSuccessStatus: 204

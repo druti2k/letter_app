@@ -178,10 +178,21 @@ router.get('/verify', async (req, res) => {
 // Registration route
 router.post('/register', async (req, res) => {
   try {
+    console.log('Registration request received:', {
+      body: req.body,
+      headers: req.headers
+    });
+
     const { email, password, name } = req.body;
+    console.log('Parsed registration data:', { email, name, hasPassword: !!password });
 
     // Validate input
     if (!email || !password || !name) {
+      console.log('Missing required fields:', {
+        email: !email,
+        password: !password,
+        name: !name
+      });
       return res.status(400).json({ 
         message: 'Missing required fields',
         details: {
@@ -195,31 +206,43 @@ router.post('/register', async (req, res) => {
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
+      console.log('Invalid email format:', email);
       return res.status(400).json({ message: 'Invalid email format' });
     }
 
     // Validate password strength
     if (password.length < 6) {
+      console.log('Password too short');
       return res.status(400).json({ message: 'Password must be at least 6 characters long' });
     }
     
     // Check if user already exists
+    console.log('Checking for existing user with email:', email);
     const existingUser = await User.findOne({ where: { email } });
     if (existingUser) {
+      console.log('User already exists with email:', email);
       return res.status(400).json({ message: 'User already exists' });
     }
 
     // Hash password
+    console.log('Hashing password...');
     const hashedPassword = await bcrypt.hash(password, 10);
     
     // Create user
+    console.log('Creating new user...');
     const user = await User.create({
       email,
       password: hashedPassword,
       name
     });
+    console.log('User created successfully:', {
+      id: user.id,
+      email: user.email,
+      name: user.name
+    });
 
     // Generate JWT token
+    console.log('Generating JWT token...');
     const token = jwt.sign(
       { id: user.id, email: user.email, name: user.name },
       process.env.SECRET_KEY,
@@ -227,6 +250,7 @@ router.post('/register', async (req, res) => {
     );
 
     // Return success response
+    console.log('Sending success response...');
     res.status(201).json({
       message: 'User registered successfully',
       token,
@@ -237,7 +261,11 @@ router.post('/register', async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Registration error:', error);
+    console.error('Registration error:', {
+      message: error.message,
+      stack: error.stack,
+      code: error.code
+    });
     res.status(500).json({ 
       message: 'Registration failed',
       error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
