@@ -1,0 +1,27 @@
+{
+  "name": "letter-app-server",
+  "version": "1.0.0",
+  "description": "Backend server for Letter App",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js",
+    "dev": "nodemon app.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.0.3",
+    "express": "^4.18.2",
+    "express-session": "^1.17.3",
+    "google-auth-library": "^8.7.0",
+    "googleapis": "^118.0.0",
+    "jsonwebtoken": "^9.0.0",
+    "pg": "^8.14.1",
+    "pg-hstore": "^2.3.4",
+    "sequelize": "^6.31.0",
+    "sqlite3": "^5.1.6"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.22"
+  }
+}

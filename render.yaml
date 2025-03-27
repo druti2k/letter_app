@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: letter-app-api
+    env: node
+    buildCommand: cd server && npm install
+    startCommand: cd server && node app.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3001
+      - key: CLIENT_URL
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: SECRET_KEY
+        sync: false
+      - key: DATABASE_URL
+        sync: false 
