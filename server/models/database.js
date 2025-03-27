@@ -1,11 +1,18 @@
 const { Sequelize } = require('sequelize');
 const path = require('path');
+const fs = require('fs');
 require('dotenv').config();
 
-// Use /data directory in production (Render's persistent disk)
+// Use /data directory in production (Railway's persistent storage)
 const dbPath = process.env.NODE_ENV === 'production'
-  ? '/data/database.sqlite'
+  ? path.join(process.env.RAILWAY_VOLUME_MOUNT_PATH || '/data', 'database.sqlite')
   : path.join(__dirname, '../database.sqlite');
+
+// Ensure the directory exists
+const dbDir = path.dirname(dbPath);
+if (!fs.existsSync(dbDir)) {
+  fs.mkdirSync(dbDir, { recursive: true });
+}
 
 const sequelize = new Sequelize({
   dialect: 'sqlite',
@@ -24,6 +31,7 @@ const initDatabase = async () => {
   try {
     await sequelize.authenticate();
     console.log('Database connection has been established successfully.');
+    console.log('Database path:', dbPath);
     
     // Import models
     const User = require('./user');
@@ -40,14 +48,10 @@ const initDatabase = async () => {
       foreignKey: 'userId'
     });
     
-    // Force sync in development (this will drop tables and recreate them)
-    if (process.env.NODE_ENV === 'development') {
-      await sequelize.sync({ force: true });
-      console.log('Database models have been synchronized (tables recreated).');
-    } else {
-      await sequelize.sync();
-      console.log('Database models have been synchronized.');
-    }
+    // Sync without force in production
+    await sequelize.sync({ force: process.env.NODE_ENV === 'development' });
+    console.log('Database models have been synchronized.');
+    
   } catch (error) {
     console.error('Unable to connect to the database:', error);
     throw error;

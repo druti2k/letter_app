@@ -20,16 +20,33 @@ const Letter = sequelize.define('Letter', {
     allowNull: false
   },
   status: {
-    type: DataTypes.ENUM('draft', 'published'),
-    defaultValue: 'draft'
+    type: DataTypes.STRING,
+    defaultValue: 'draft',
+    validate: {
+      isIn: [['draft', 'published']]
+    }
   },
   tags: {
-    type: DataTypes.ARRAY(DataTypes.STRING),
-    defaultValue: []
+    type: DataTypes.TEXT,
+    defaultValue: '[]',
+    get() {
+      const rawValue = this.getDataValue('tags');
+      return rawValue ? JSON.parse(rawValue) : [];
+    },
+    set(value) {
+      this.setDataValue('tags', JSON.stringify(value || []));
+    }
   },
   metadata: {
-    type: DataTypes.JSONB,
-    defaultValue: {}
+    type: DataTypes.TEXT,
+    defaultValue: '{}',
+    get() {
+      const rawValue = this.getDataValue('metadata');
+      return rawValue ? JSON.parse(rawValue) : {};
+    },
+    set(value) {
+      this.setDataValue('metadata', JSON.stringify(value || {}));
+    }
   }
 }, {
   timestamps: true,
