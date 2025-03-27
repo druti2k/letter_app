@@ -12,12 +12,14 @@ const app = express();
 app.use(express.json());
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
-    ? ['https://whimsical-bombolone-ccd89f.netlify.app', process.env.CLIENT_URL]
+    ? ['https://whimsical-bombolone-ccd89f.netlify.app', process.env.CLIENT_URL].filter(Boolean)
     : 'http://localhost:3000',
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  exposedHeaders: ['Set-Cookie']
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
+  exposedHeaders: ['Set-Cookie'],
+  preflightContinue: false,
+  optionsSuccessStatus: 204
 }));
 
 // Session configuration
