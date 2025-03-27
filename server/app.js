@@ -2,7 +2,9 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const session = require('express-session');
+const SQLiteStore = require('connect-sqlite3')(session);
 const { initDatabase } = require('./models/database');
+const path = require('path');
 
 const app = express();
 
@@ -19,7 +21,12 @@ app.use(cors({
 }));
 
 // Session configuration
-app.use(session({
+const sessionConfig = {
+  store: new SQLiteStore({
+    dir: process.env.NODE_ENV === 'production' ? '/data' : path.join(__dirname, '..'),
+    db: 'sessions.sqlite',
+    table: 'sessions'
+  }),
   secret: process.env.SECRET_KEY,
   resave: false,
   saveUninitialized: false,
@@ -29,7 +36,9 @@ app.use(session({
     sameSite: 'lax',
     maxAge: 24 * 60 * 60 * 1000 // 24 hours
   }
-}));
+};
+
+app.use(session(sessionConfig));
 
 // Routes
 const authRoutes = require('./routes/auth');
