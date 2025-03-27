@@ -18,19 +18,32 @@ export const AuthProvider = ({ children }) => {
 
   const checkAuth = useCallback(async () => {
     try {
+      console.log('Checking authentication status...');
       const token = localStorage.getItem('token');
-      if (token) {
-        api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-        const response = await api.get('/api/auth/verify');
-        if (response.data.isValid) {
-          setIsAuthenticated(true);
-          setUser(response.data.user);
-        } else {
-          logout();
-        }
+      
+      if (!token) {
+        console.log('No token found in localStorage');
+        setIsAuthenticated(false);
+        setUser(null);
+        return;
+      }
+
+      console.log('Token found, verifying...');
+      api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      
+      const response = await api.get('/api/auth/verify');
+      console.log('Verify response:', response.data);
+      
+      if (response.data.isValid && response.data.user) {
+        console.log('Token verified successfully');
+        setIsAuthenticated(true);
+        setUser(response.data.user);
+      } else {
+        console.log('Token verification failed');
+        logout();
       }
     } catch (error) {
-      console.error('Auth check failed:', error);
+      console.error('Auth check failed:', error.response?.data || error.message);
       logout();
     } finally {
       setLoading(false);
@@ -45,32 +58,32 @@ export const AuthProvider = ({ children }) => {
     try {
       console.log('Starting login process...', { email: userData.email });
       
-      // Set token in localStorage and axios headers
+      if (!token || !userData) {
+        throw new Error('Missing token or user data');
+      }
+
+      // Store token and set headers
       localStorage.setItem('token', token);
       api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
       
-      // Verify the token is valid
+      // Verify token immediately
       console.log('Verifying token...');
       const response = await api.get('/api/auth/verify');
       
-      if (!response.data.isValid) {
-        console.error('Token verification failed');
+      if (!response.data.isValid || !response.data.user) {
         throw new Error('Token verification failed');
       }
       
       console.log('Token verified successfully');
       setIsAuthenticated(true);
-      setUser(userData);
-      setLoading(false);
+      setUser(response.data.user);
       return true;
     } catch (error) {
-      console.error('Login failed:', error.message);
-      localStorage.removeItem('token');
-      delete api.defaults.headers.common['Authorization'];
-      setIsAuthenticated(false);
-      setUser(null);
-      setLoading(false);
+      console.error('Login failed:', error.response?.data || error.message);
+      logout();
       throw error;
+    } finally {
+      setLoading(false);
     }
   };
 

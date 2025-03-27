@@ -1,10 +1,11 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: process.env.REACT_APP_API_URL || 'http://localhost:5000',
+  baseURL: process.env.REACT_APP_API_URL || 'http://localhost:3001',
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: true // Enable sending cookies
 });
 
 // Add token to requests if it exists
@@ -13,21 +14,39 @@ api.interceptors.request.use((config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+  console.log('Making request:', {
+    url: config.url,
+    method: config.method,
+    headers: config.headers,
+    data: config.data
+  });
   return config;
 });
 
 // Add a response interceptor to handle errors
 api.interceptors.response.use(
-  response => response,
+  response => {
+    console.log('Response received:', {
+      url: response.config.url,
+      status: response.status,
+      data: response.data
+    });
+    return response;
+  },
   error => {
+    console.error('API Error:', {
+      url: error.config?.url,
+      method: error.config?.method,
+      status: error.response?.status,
+      data: error.response?.data,
+      message: error.message
+    });
+
     if (error.response?.status === 401) {
       // Handle unauthorized access
       localStorage.removeItem('token');
       window.location.href = '/login';
     }
-    // Add more detailed error handling
-    const errorMessage = error.response?.data?.message || error.message;
-    console.error('API Error:', errorMessage);
     return Promise.reject(error);
   }
 );

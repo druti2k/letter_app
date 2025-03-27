@@ -44,23 +44,57 @@ const Login = () => {
     e.preventDefault();
     setError('');
 
-    if (isSignUp && formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match');
-      return;
-    }
-
     try {
-      const endpoint = isSignUp ? '/api/auth/register' : '/api/auth/login';
-      const response = await api.post(endpoint, {
+      // Validate form data
+      if (isSignUp) {
+        if (!formData.name || !formData.name.trim()) {
+          setError('Name is required');
+          return;
+        }
+        if (formData.password.length < 6) {
+          setError('Password must be at least 6 characters long');
+          return;
+        }
+        if (formData.password !== formData.confirmPassword) {
+          setError('Passwords do not match');
+          return;
+        }
+      }
+
+      // Prepare request data
+      const data = {
         email: formData.email.trim().toLowerCase(),
         password: formData.password,
-        name: formData.name,
+        ...(isSignUp && { name: formData.name.trim() })
+      };
+
+      console.log('Submitting form:', {
+        isSignUp,
+        endpoint: isSignUp ? '/api/auth/register' : '/api/auth/login',
+        data: { ...data, password: '***' }
+      });
+
+      const endpoint = isSignUp ? '/api/auth/register' : '/api/auth/login';
+      const response = await api.post(endpoint, data);
+
+      console.log('Authentication successful:', {
+        token: !!response.data.token,
+        user: response.data.user
       });
 
       login(response.data.token, response.data.user);
       navigate('/dashboard');
     } catch (err) {
-      setError(err.response?.data?.message || 'Authentication failed');
+      console.error('Authentication error:', {
+        status: err.response?.status,
+        data: err.response?.data,
+        message: err.message
+      });
+      setError(
+        err.response?.data?.message ||
+        err.response?.data?.error ||
+        'Authentication failed. Please try again.'
+      );
     }
   };
 

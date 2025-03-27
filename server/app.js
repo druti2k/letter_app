@@ -22,28 +22,15 @@ app.use((req, res, next) => {
   next();
 });
 
+// CORS configuration
 app.use(cors({
-  origin: function(origin, callback) {
-    const allowedOrigins = process.env.NODE_ENV === 'production'
-      ? ['https://whimsical-bombolone-ccd89f.netlify.app', process.env.CLIENT_URL].filter(Boolean)
-      : ['http://localhost:3000', 'http://localhost:3001'];
-    
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
-    
-    if (allowedOrigins.indexOf(origin) === -1) {
-      console.log('Origin not allowed:', origin);
-      console.log('Allowed origins:', allowedOrigins);
-    }
-    
-    return callback(null, true); // Allow all origins during development
-  },
+  origin: process.env.NODE_ENV === 'production'
+    ? [process.env.CLIENT_URL]
+    : ['http://localhost:3000', 'http://localhost:3001'],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin', 'X-Requested-With'],
   exposedHeaders: ['Set-Cookie'],
-  preflightContinue: false,
-  optionsSuccessStatus: 204
 }));
 
 // Session configuration
