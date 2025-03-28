@@ -1,38 +1,43 @@
-FROM node:16-bullseye-slim
+# Build stage
+FROM node:16-bullseye AS builder
 
-# Install required system dependencies
+# Install build dependencies
 RUN apt-get update && \
     apt-get install -y \
     python3 \
     make \
     g++ \
-    pkg-config \
-    build-essential \
+    sqlite3 \
     && rm -rf /var/lib/apt/lists/*
 
-# Create app directory
-WORKDIR /usr/src/app
+WORKDIR /build
 
 # Copy package files
 COPY package*.json ./
 
-# Debug: Show package.json content and environment
-RUN echo "Package.json contents:" && \
-    cat package.json && \
-    echo "\nNode version:" && \
-    node --version && \
-    echo "\nNPM version:" && \
-    npm --version
+# Install all dependencies (including devDependencies)
+RUN npm install
 
-# Install dependencies with legacy peer deps
-RUN npm install --production --legacy-peer-deps
-
-# Copy the rest of the application
+# Copy source
 COPY . .
 
-# Create data directory for SQLite
+# Production stage
+FROM node:16-bullseye-slim
+
+# Install runtime dependencies
+RUN apt-get update && \
+    apt-get install -y sqlite3 && \
+    rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Copy built node modules and source
+COPY --from=builder /build/node_modules ./node_modules
+COPY --from=builder /build .
+
+# Create data directory
 RUN mkdir -p /data && \
-    chown -R node:node /data /usr/src/app
+    chown -R node:node /data /app
 
 # Set environment variables
 ENV NODE_ENV=production
