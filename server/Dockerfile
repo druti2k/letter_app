@@ -6,36 +6,30 @@ RUN apt-get update && \
     python3 \
     make \
     g++ \
-    git \
     && rm -rf /var/lib/apt/lists/*
 
-# Create app directory and set ownership
+# Create app directory
 WORKDIR /usr/src/app
 
-# Create data directory for SQLite with proper permissions
-RUN mkdir -p /data && \
-    chown -R node:node /data
+# Copy package files
+COPY package*.json ./
 
-# Switch to non-root user for npm operations
-USER node
-
-# Copy package files with correct ownership
-COPY --chown=node:node package*.json ./
-
-# Clear npm cache and install dependencies
-RUN npm cache clean --force && \
-    npm install \
-    --no-optional \
-    --production \
-    --verbose \
-    --unsafe-perm
+# Install dependencies
+RUN npm install --production
 
 # Copy the rest of the application
-COPY --chown=node:node . .
+COPY . .
+
+# Create data directory for SQLite
+RUN mkdir -p /data && \
+    chown -R node:node /data /usr/src/app
 
 # Set environment variables
 ENV NODE_ENV=production
 ENV PORT=3001
+
+# Switch to non-root user
+USER node
 
 EXPOSE 3001
 
