@@ -6,28 +6,26 @@ const SQLiteStore = require('connect-sqlite3')(session);
 const { initDatabase } = require('./models/database');
 const path = require('path');
 const fs = require('fs');
-const helmet = require('helmet');
-const morgan = require('morgan');
-const rateLimit = require('express-rate-limit');
 
 const app = express();
 
-// Security middleware
-app.use(helmet());
+// Middleware
+app.use(express.json());
 
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100 // limit each IP to 100 requests per windowMs
+// Log all incoming requests
+app.use((req, res, next) => {
+  console.log('Incoming request:', {
+    method: req.method,
+    path: req.path,
+    headers: {
+      ...req.headers,
+      authorization: req.headers.authorization ? 'Bearer [REDACTED]' : undefined
+    },
+    body: req.body,
+    query: req.query
+  });
+  next();
 });
-app.use('/api/', limiter);
-
-// Request logging
-app.use(morgan('dev'));
-
-// Body parsing middleware
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // CORS configuration
 app.use(cors({
@@ -36,24 +34,18 @@ app.use(cors({
     : ['http://localhost:3000', 'http://localhost:3001'],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin', 'X-Requested-With'],
   exposedHeaders: ['Set-Cookie'],
 }));
-
-// Ensure data directory exists
-const dataDir = process.env.NODE_ENV === 'production' ? '/data' : path.join(__dirname, '..', 'data');
-if (!fs.existsSync(dataDir)) {
-  fs.mkdirSync(dataDir, { recursive: true });
-}
 
 // Session configuration
 const sessionConfig = {
   store: new SQLiteStore({
-    dir: dataDir,
+    dir: process.env.NODE_ENV === 'production' ? '/data' : path.join(__dirname, '..'),
     db: 'sessions.sqlite',
     table: 'sessions'
   }),
-  secret: process.env.SESSION_SECRET || 'your-session-secret',
+  secret: process.env.SECRET_KEY,
   resave: false,
   saveUninitialized: false,
   cookie: {
@@ -64,9 +56,10 @@ const sessionConfig = {
   }
 };
 
-if (process.env.NODE_ENV === 'production') {
-  app.set('trust proxy', 1);
-  sessionConfig.cookie.secure = true;
+// Ensure session directory exists
+const sessionDir = process.env.NODE_ENV === 'production' ? '/data' : path.join(__dirname, '..');
+if (!fs.existsSync(sessionDir)) {
+  fs.mkdirSync(sessionDir, { recursive: true });
 }
 
 app.use(session(sessionConfig));
@@ -76,53 +69,36 @@ const authRoutes = require('./routes/auth');
 const lettersRoutes = require('./routes/letters');
 const driveRoutes = require('./routes/drive');
 
-// Mount routes
 app.use('/api/auth', authRoutes);
 app.use('/api/letters', lettersRoutes);
 app.use('/api/drive', driveRoutes);
 
 // Health check endpoint
-app.get('/api/health', (req, res) => {
+app.get('/', (req, res) => {
   res.json({ 
-    status: 'healthy',
+    message: 'Letter App API is running',
     environment: process.env.NODE_ENV,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    clientUrl: process.env.CLIENT_URL,
+    serverUrl: process.env.SERVER_URL
   });
 });
 
-// Global error handler
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'healthy' });
+});
+
+// Error handling middleware
 app.use((err, req, res, next) => {
-  console.error('Error details:', {
-    message: err.message,
-    stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,
-    code: err.code,
-    path: req.path,
-    method: req.method
-  });
+  console.error('Error:', err);
   
   if (err.name === 'OAuth2Error') {
+    console.error('OAuth Error:', err);
     return res.redirect(`${process.env.CLIENT_URL}/login?error=${encodeURIComponent(err.message)}`);
   }
 
-  // Handle CORS errors
-  if (err.message === 'Not allowed by CORS') {
-    return res.status(403).json({
-      message: 'Origin not allowed',
-      error: process.env.NODE_ENV === 'development' ? err.message : undefined
-    });
-  }
-  
-  // Handle validation errors
-  if (err.name === 'ValidationError') {
-    return res.status(400).json({
-      message: 'Validation error',
-      errors: err.errors
-    });
-  }
-
-  // Default error response
-  res.status(err.status || 500).json({ 
-    message: err.message || 'Something went wrong!',
+  res.status(500).json({ 
+    message: 'Something went wrong!',
     error: process.env.NODE_ENV === 'development' ? err.message : undefined
   });
 });
@@ -132,19 +108,15 @@ const port = process.env.PORT || 3001;
 
 const startServer = async () => {
   try {
-    // Initialize database
     await initDatabase();
-    console.log('Database initialized successfully');
-
-    // Start server
+    
     app.listen(port, () => {
-      console.log(`Server running in ${process.env.NODE_ENV} mode on port ${port}`);
-      console.log(`Client URL: ${process.env.CLIENT_URL}`);
+      console.log(`Server running on port ${port}`);
     });
   } catch (error) {
     console.error('Failed to start server:', error);
-    process.exit(1);
   }
 };
 
+startServer(); 
 startServer(); 
