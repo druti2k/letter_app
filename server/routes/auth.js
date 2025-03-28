@@ -111,9 +111,16 @@ router.get('/google/callback', async (req, res) => {
       { expiresIn: '24h' }
     );
 
+    console.log('Generated token length:', token.length);
+    console.log('Token structure valid:', token.split('.').length === 3);
+
+    // Double encode the token to handle special characters
+    const encodedToken = encodeURIComponent(token);
+    console.log('Encoded token length:', encodedToken.length);
+
     console.log('Redirecting to frontend with token');
-    const redirectUrl = `${process.env.CLIENT_URL}/auth/success?token=${encodeURIComponent(token)}`;
-    console.log('Redirect URL:', redirectUrl);
+    const redirectUrl = `${process.env.CLIENT_URL}/auth/success?token=${encodedToken}`;
+    console.log('Redirect URL:', redirectUrl.substring(0, 100) + '...');
     res.redirect(redirectUrl);
   } catch (error) {
     console.error('Detailed callback error:', error);

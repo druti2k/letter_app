@@ -20,7 +20,7 @@ const AuthSuccess = () => {
         const details = params.get('details');
 
         console.log('URL parameters:', { 
-          hasToken: !!token,
+          token: token ? token.substring(0, 20) + '...' : null,
           error,
           details
         });
@@ -45,11 +45,18 @@ const AuthSuccess = () => {
 
         try {
           // Decode token to get user info
-          const base64Url = token.split('.')[1];
+          const decodedToken = decodeURIComponent(token);
+          console.log('Decoded token length:', decodedToken.length);
+          
+          const base64Url = decodedToken.split('.')[1];
+          if (!base64Url) {
+            throw new Error('Invalid token format');
+          }
+          
           const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
           const payload = JSON.parse(window.atob(base64));
           
-          console.log('Token decoded:', {
+          console.log('Token decoded successfully:', {
             hasUserId: !!payload.id,
             hasEmail: !!payload.email,
             hasName: !!payload.name
@@ -59,7 +66,7 @@ const AuthSuccess = () => {
           window.history.replaceState({}, document.title, '/auth/success');
 
           // Login
-          await login(token, {
+          await login(decodedToken, {
             id: payload.id,
             email: payload.email,
             name: payload.name
@@ -71,14 +78,14 @@ const AuthSuccess = () => {
           console.error('Token processing error:', decodeError);
           navigate('/login', {
             replace: true,
-            state: { error: 'Invalid authentication token' }
+            state: { error: 'Invalid authentication token: ' + decodeError.message }
           });
         }
       } catch (error) {
         console.error('Auth success handling error:', error);
         navigate('/login', {
           replace: true,
-          state: { error: 'Authentication process failed' }
+          state: { error: 'Authentication process failed: ' + error.message }
         });
       }
     };
