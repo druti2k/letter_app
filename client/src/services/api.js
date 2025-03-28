@@ -27,16 +27,22 @@ api.interceptors.request.use((config) => {
   console.log('Making request:', {
     url: config.url,
     method: config.method,
-    hasToken: !!token
+    hasToken: !!token,
+    baseURL: config.baseURL
   });
   return config;
 }, error => {
+  console.error('Request interceptor error:', error);
   return Promise.reject(error);
 });
 
 // Add a response interceptor to handle errors
 api.interceptors.response.use(
   response => {
+    console.log('Response received:', {
+      url: response.config.url,
+      status: response.status
+    });
     return response;
   },
   error => {
@@ -44,10 +50,19 @@ api.interceptors.response.use(
       url: error.config?.url,
       method: error.config?.method,
       status: error.response?.status,
-      message: error.message
+      message: error.message,
+      data: error.response?.data
     });
 
-    // Don't handle auth errors here, let the components handle them
+    // Handle specific error cases
+    if (error.response?.status === 401) {
+      // Only clear token if it's not an auth endpoint
+      if (!error.config.url.startsWith('/api/auth/')) {
+        localStorage.removeItem('token');
+        window.location.replace('/login');
+      }
+    }
+
     return Promise.reject(error);
   }
 );

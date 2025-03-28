@@ -5,6 +5,7 @@ const session = require('express-session');
 const SQLiteStore = require('connect-sqlite3')(session);
 const { initDatabase } = require('./models/database');
 const path = require('path');
+const fs = require('fs');
 
 const app = express();
 
@@ -16,8 +17,12 @@ app.use((req, res, next) => {
   console.log('Incoming request:', {
     method: req.method,
     path: req.path,
-    headers: req.headers,
-    body: req.body
+    headers: {
+      ...req.headers,
+      authorization: req.headers.authorization ? 'Bearer [REDACTED]' : undefined
+    },
+    body: req.body,
+    query: req.query
   });
   next();
 });
@@ -51,6 +56,12 @@ const sessionConfig = {
   }
 };
 
+// Ensure session directory exists
+const sessionDir = process.env.NODE_ENV === 'production' ? '/data' : path.join(__dirname, '..');
+if (!fs.existsSync(sessionDir)) {
+  fs.mkdirSync(sessionDir, { recursive: true });
+}
+
 app.use(session(sessionConfig));
 
 // Routes
@@ -68,7 +79,9 @@ app.get('/', (req, res) => {
   res.json({ 
     message: 'Letter App API is running',
     environment: process.env.NODE_ENV,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    clientUrl: process.env.CLIENT_URL,
+    serverUrl: process.env.SERVER_URL
   });
 });
 
@@ -83,7 +96,11 @@ app.use((err, req, res, next) => {
     stack: err.stack,
     code: err.code,
     path: req.path,
-    method: req.method
+    method: req.method,
+    headers: {
+      ...req.headers,
+      authorization: req.headers.authorization ? 'Bearer [REDACTED]' : undefined
+    }
   });
   
   if (err.name === 'OAuth2Error') {

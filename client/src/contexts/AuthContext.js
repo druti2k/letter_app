@@ -15,17 +15,20 @@ export const AuthProvider = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState(null);
+  const [error, setError] = useState(null);
 
   const logout = useCallback(() => {
     console.log('Logging out user...');
     localStorage.removeItem('token');
     setIsAuthenticated(false);
     setUser(null);
+    setError(null);
     setLoading(false);
   }, []);
 
   const checkAuth = useCallback(async () => {
     try {
+      setError(null);
       const token = localStorage.getItem('token');
       
       if (!token) {
@@ -48,6 +51,8 @@ export const AuthProvider = ({ children }) => {
       console.error('Auth check failed:', error.message);
       if (error.response?.status === 401) {
         logout();
+      } else {
+        setError(error.message);
       }
     } finally {
       setLoading(false);
@@ -60,6 +65,7 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (token, userData) => {
     try {
+      setError(null);
       if (!token || !userData) {
         throw new Error('Missing token or user data');
       }
@@ -84,6 +90,7 @@ export const AuthProvider = ({ children }) => {
       return true;
     } catch (error) {
       console.error('Login failed:', error.message);
+      setError(error.message);
       logout();
       throw error;
     }
@@ -101,6 +108,7 @@ export const AuthProvider = ({ children }) => {
     isAuthenticated,
     loading,
     user,
+    error,
     login,
     logout,
   };
