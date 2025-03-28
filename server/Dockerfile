@@ -1,5 +1,4 @@
-# Build stage
-FROM node:16-bullseye AS builder
+FROM node:14-buster
 
 # Install build dependencies
 RUN apt-get update && \
@@ -8,32 +7,29 @@ RUN apt-get update && \
     make \
     g++ \
     sqlite3 \
+    build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-WORKDIR /build
+WORKDIR /app
 
 # Copy package files
 COPY package*.json ./
 
-# Install all dependencies (including devDependencies)
-RUN npm install
+# Install dependencies one by one
+RUN npm install sqlite3@5.0.8 && \
+    npm install connect-sqlite3@0.9.13 && \
+    npm install express@4.18.2 && \
+    npm install express-session@1.17.3 && \
+    npm install cors@2.8.5 && \
+    npm install dotenv@16.0.3 && \
+    npm install bcryptjs@2.4.3 && \
+    npm install google-auth-library@8.7.0 && \
+    npm install googleapis@118.0.0 && \
+    npm install jsonwebtoken@9.0.0 && \
+    npm install sequelize@6.31.0
 
-# Copy source
+# Copy the rest of the application
 COPY . .
-
-# Production stage
-FROM node:16-bullseye-slim
-
-# Install runtime dependencies
-RUN apt-get update && \
-    apt-get install -y sqlite3 && \
-    rm -rf /var/lib/apt/lists/*
-
-WORKDIR /app
-
-# Copy built node modules and source
-COPY --from=builder /build/node_modules ./node_modules
-COPY --from=builder /build .
 
 # Create data directory
 RUN mkdir -p /data && \
