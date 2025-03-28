@@ -1,11 +1,13 @@
-FROM node:18-slim
+FROM node:16-bullseye-slim
 
-# Install required system dependencies for sqlite3
+# Install required system dependencies
 RUN apt-get update && \
     apt-get install -y \
     python3 \
     make \
     g++ \
+    pkg-config \
+    build-essential \
     && rm -rf /var/lib/apt/lists/*
 
 # Create app directory
@@ -14,8 +16,16 @@ WORKDIR /usr/src/app
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies
-RUN npm install --production
+# Debug: Show package.json content and environment
+RUN echo "Package.json contents:" && \
+    cat package.json && \
+    echo "\nNode version:" && \
+    node --version && \
+    echo "\nNPM version:" && \
+    npm --version
+
+# Install dependencies with legacy peer deps
+RUN npm install --production --legacy-peer-deps
 
 # Copy the rest of the application
 COPY . .
