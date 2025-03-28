@@ -18,31 +18,25 @@ const api = axios.create({
 
 // Add token to requests if it exists
 api.interceptors.request.use((config) => {
-  // Don't add token for auth endpoints except verify
-  const isAuthEndpoint = config.url.startsWith('/api/auth/') && !config.url.includes('/verify');
   const token = localStorage.getItem('token');
   
-  if (token && !isAuthEndpoint) {
+  if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
   
   console.log('Making request:', {
     url: config.url,
     method: config.method,
-    hasToken: !!config.headers.Authorization,
-    data: config.data
+    hasToken: !!token
   });
   return config;
+}, error => {
+  return Promise.reject(error);
 });
 
 // Add a response interceptor to handle errors
 api.interceptors.response.use(
   response => {
-    console.log('Response received:', {
-      url: response.config.url,
-      status: response.status,
-      data: response.data
-    });
     return response;
   },
   error => {
@@ -50,19 +44,10 @@ api.interceptors.response.use(
       url: error.config?.url,
       method: error.config?.method,
       status: error.response?.status,
-      data: error.response?.data,
       message: error.message
     });
 
-    // Only handle 401 errors for non-auth endpoints
-    if (error.response?.status === 401 && !error.config.url.startsWith('/api/auth/')) {
-      console.log('Unauthorized access, clearing token');
-      localStorage.removeItem('token');
-      // Use window.location.replace to prevent adding to history
-      if (!window.location.pathname.includes('/login')) {
-        window.location.replace('/login');
-      }
-    }
+    // Don't handle auth errors here, let the components handle them
     return Promise.reject(error);
   }
 );
