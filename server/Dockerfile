@@ -13,13 +13,24 @@ RUN apt-get update && \
 # Set working directory
 WORKDIR /app
 
-# Copy all application files first
-COPY . .
+# Debug: Show build context
+RUN pwd && \
+    echo "Build context before copy:"
 
-# Verify app.js exists and show its contents
-RUN ls -la /app/app.js && \
-    echo "Contents of app.js:" && \
-    cat /app/app.js
+# Copy files explicitly
+COPY package*.json ./
+COPY app.js ./
+COPY routes ./routes
+COPY models ./models
+COPY services ./services
+
+# Debug: Show copied files
+RUN echo "Files in /app:" && \
+    ls -la /app && \
+    echo "\nContents of current directory:" && \
+    ls -la ./ && \
+    echo "\nFull path of app.js:" && \
+    find / -name app.js 2>/dev/null
 
 # Install dependencies
 RUN npm install
@@ -38,4 +49,4 @@ USER node
 EXPOSE 3001
 
 # Start the app with full path
-CMD ["node", "/app/app.js"] 
+CMD ["node", "./app.js"] 
