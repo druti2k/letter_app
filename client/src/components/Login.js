@@ -38,8 +38,11 @@ const Login = () => {
 
   const handleGoogleLogin = () => {
     console.log('Starting Google OAuth flow');
-    console.log('Redirecting to:', `${process.env.REACT_APP_API_URL}/api/auth/google`);
-    window.location.href = `${process.env.REACT_APP_API_URL}/api/auth/google`;
+    const baseUrl = process.env.NODE_ENV === 'development' 
+      ? 'http://localhost:3001'
+      : 'https://letter-app-api-production.up.railway.app';
+    console.log('Redirecting to:', `${baseUrl}/api/auth/google`);
+    window.location.href = `${baseUrl}/api/auth/google`;
   };
 
   const handleSubmit = async (e) => {

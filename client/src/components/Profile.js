@@ -13,6 +13,7 @@ import {
 import { Person as PersonIcon } from '@mui/icons-material';
 import { useAuth } from '../contexts/AuthContext';
 import { motion } from 'framer-motion';
+import { api } from '../services/api';
 
 const Profile = () => {
   const { user, login } = useAuth();
@@ -51,27 +52,14 @@ const Profile = () => {
         }
       }
 
-      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/auth/profile`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        },
-        body: JSON.stringify({
-          name: formData.name,
-          currentPassword: formData.currentPassword,
-          newPassword: formData.newPassword,
-        }),
+      const response = await api.put('/api/auth/profile', {
+        name: formData.name,
+        currentPassword: formData.currentPassword,
+        newPassword: formData.newPassword,
       });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Failed to update profile');
-      }
-
       // Update local user data
-      login(data.token, data.user);
+      login(response.data.token, response.data.user);
       setSuccess('Profile updated successfully');
 
       // Clear password fields
@@ -82,7 +70,7 @@ const Profile = () => {
         confirmNewPassword: '',
       }));
     } catch (err) {
-      setError(err.message);
+      setError(err.response?.data?.message || 'Failed to update profile');
     }
   };
 
