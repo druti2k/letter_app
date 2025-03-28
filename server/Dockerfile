@@ -1,19 +1,23 @@
 FROM node:18-slim
 
-WORKDIR /app
+# Create app directory
+WORKDIR /usr/src/app
 
-# Copy package files
-COPY package*.json ./
+# Copy package.json and package-lock.json
+COPY package.json ./
+COPY package-lock.json ./
 
-# Install dependencies
-RUN npm install --production
+# Install app dependencies
+RUN npm install --only=production
 
-# Copy app source
+# Bundle app source
 COPY . .
 
 # Set environment variables
 ENV NODE_ENV=production
 ENV PORT=3001
+
+EXPOSE 3001
 
 # Start the app
 CMD ["node", "app.js"] 
