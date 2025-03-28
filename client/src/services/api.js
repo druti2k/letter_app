@@ -2,47 +2,67 @@ import axios from 'axios';
 
 // Determine the base URL based on the environment
 const getBaseUrl = () => {
-  const envUrl = process.env.REACT_APP_API_URL;
-  if (envUrl) return envUrl;
-  
-  return process.env.NODE_ENV === 'development' 
-    ? 'http://localhost:3001'
-    : 'https://letter-app-api-production.up.railway.app';
+  if (process.env.NODE_ENV === 'development') {
+    return 'http://localhost:3001';
+  }
+  return process.env.REACT_APP_API_URL || 'https://letter-app-api-production.up.railway.app';
 };
 
-// Create axios instance with default config
 const api = axios.create({
   baseURL: getBaseUrl(),
   headers: {
     'Content-Type': 'application/json',
   },
-  withCredentials: true,
+  withCredentials: true // Enable sending cookies
 });
 
-// Request interceptor
-api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
+// Add token to requests if it exists
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('token');
+  
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
   }
-);
+  
+  console.log('Making request:', {
+    url: config.url,
+    method: config.method,
+    hasToken: !!token,
+    baseURL: config.baseURL
+  });
+  return config;
+}, error => {
+  console.error('Request interceptor error:', error);
+  return Promise.reject(error);
+});
 
-// Response interceptor
+// Add a response interceptor to handle errors
 api.interceptors.response.use(
-  (response) => response,
-  (error) => {
+  response => {
+    console.log('Response received:', {
+      url: response.config.url,
+      status: response.status
+    });
+    return response;
+  },
+  error => {
+    console.error('API Error:', {
+      url: error.config?.url,
+      method: error.config?.method,
+      status: error.response?.status,
+      message: error.message,
+      data: error.response?.data
+    });
+
+    // Handle specific error cases
     if (error.response?.status === 401) {
+      // Only clear token if it's not an auth endpoint
       if (!error.config.url.startsWith('/api/auth/')) {
         localStorage.removeItem('token');
         window.location.replace('/login');
       }
     }
+
     return Promise.reject(error);
   }
 );
@@ -51,10 +71,6 @@ api.interceptors.response.use(
 export const register = (data) => api.post('/api/auth/register', data);
 export const login = (data) => api.post('/api/auth/login', data);
 export const verifyToken = () => api.get('/api/auth/verify');
-export const logout = () => {
-  localStorage.removeItem('token');
-  return api.post('/api/auth/logout');
-};
 
 // Letter API calls
 export const getLetters = () => api.get('/api/letters');
@@ -69,8 +85,6 @@ export const getRecentLetters = () => api.get('/api/letters/recent');
 export const uploadToDrive = (data) => api.post('/api/drive/upload', data);
 export const getFilesFromDrive = () => api.get('/api/drive/files');
 export const getFileFromDrive = (fileId) => api.get(`/api/drive/files/${fileId}`);
-export const updateDriveFile = (fileId, data) => api.put(`/api/drive/files/${fileId}`, data);
-export const deleteDriveFile = (fileId) => api.delete(`/api/drive/files/${fileId}`);
 export const getDriveStorage = () => api.get('/api/drive/storage');
 
 export { api }; 

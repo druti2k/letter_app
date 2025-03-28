@@ -69,6 +69,7 @@ const authRoutes = require('./routes/auth');
 const lettersRoutes = require('./routes/letters');
 const driveRoutes = require('./routes/drive');
 
+// Mount routes
 app.use('/api/auth', authRoutes);
 app.use('/api/letters', lettersRoutes);
 app.use('/api/drive', driveRoutes);
@@ -90,13 +91,23 @@ app.get('/api/health', (req, res) => {
 
 // Error handling middleware
 app.use((err, req, res, next) => {
-  console.error('Error:', err);
+  console.error('Error details:', {
+    message: err.message,
+    stack: err.stack,
+    code: err.code,
+    path: req.path,
+    method: req.method,
+    headers: {
+      ...req.headers,
+      authorization: req.headers.authorization ? 'Bearer [REDACTED]' : undefined
+    }
+  });
   
   if (err.name === 'OAuth2Error') {
     console.error('OAuth Error:', err);
     return res.redirect(`${process.env.CLIENT_URL}/login?error=${encodeURIComponent(err.message)}`);
   }
-
+  
   res.status(500).json({ 
     message: 'Something went wrong!',
     error: process.env.NODE_ENV === 'development' ? err.message : undefined
@@ -108,8 +119,10 @@ const port = process.env.PORT || 3001;
 
 const startServer = async () => {
   try {
+    // Initialize database
     await initDatabase();
-    
+
+    // Start server
     app.listen(port, () => {
       console.log(`Server running on port ${port}`);
     });
@@ -118,5 +131,4 @@ const startServer = async () => {
   }
 };
 
-startServer(); 
 startServer(); 

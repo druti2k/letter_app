@@ -6,15 +6,14 @@ const User = require('../models/user');
 
 // JWT token verification middleware
 const verifyToken = (req, res, next) => {
-  const authHeader = req.headers.authorization;
-  
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ message: 'Token is missing' });
-  }
-  
-  const token = authHeader.split(' ')[1];
-  
   try {
+    const authHeader = req.headers.authorization;
+    
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ message: 'Token is missing' });
+    }
+    
+    const token = authHeader.split(' ')[1];
     const decoded = jwt.verify(token, process.env.SECRET_KEY);
     req.user = decoded;
     next();
@@ -42,29 +41,21 @@ const getDriveClient = async (userId) => {
       refresh_token: user.google_refresh_token
     });
 
-    // Set up token refresh handler
+    // Handle token refresh
     oauth2Client.on('tokens', async (tokens) => {
-      if (tokens.refresh_token) {
-        // Store the new refresh token
+      try {
         await user.update({
-          google_refresh_token: tokens.refresh_token
+          google_access_token: tokens.access_token,
+          google_refresh_token: tokens.refresh_token || user.google_refresh_token
         });
+      } catch (error) {
+        console.error('Failed to update tokens:', error);
       }
-      // Always store the new access token
-      await user.update({
-        google_access_token: tokens.access_token
-      });
     });
 
     return google.drive({ 
       version: 'v3', 
-      auth: oauth2Client,
-      retry: true,
-      retryConfig: {
-        retry: 3,
-        retryDelay: 1000,
-        statusCodesToRetry: [[500, 599]]
-      }
+      auth: oauth2Client
     });
   } catch (error) {
     console.error('Error initializing Drive client:', error);
@@ -77,28 +68,23 @@ router.get('/files', verifyToken, async (req, res) => {
   try {
     const drive = await getDriveClient(req.user.id);
     const response = await drive.files.list({
-      pageSize: req.query.pageSize || 10,
-      pageToken: req.query.pageToken,
-      fields: 'nextPageToken, files(id, name, mimeType, webViewLink, modifiedTime)',
+      pageSize: 10,
+      fields: 'files(id, name, mimeType, webViewLink, modifiedTime)',
       orderBy: 'modifiedTime desc',
       spaces: 'drive',
       q: "mimeType='application/vnd.google-apps.document'"
     });
 
-    res.json(response.data);
+    res.json({ files: response.data.files || [] });
   } catch (error) {
+    console.error('Error listing files:', error);
     if (error.message.includes('not authenticated')) {
       return res.status(401).json({ 
         message: 'Please reconnect your Google account',
         code: 'REAUTH_REQUIRED'
       });
     }
-    console.error('Error listing files:', error);
-    res.status(500).json({ 
-      message: 'Failed to list files',
-      details: error.message,
-      code: error.code 
-    });
+    res.status(500).json({ message: 'Failed to list files' });
   }
 });
 
@@ -132,36 +118,26 @@ router.post('/upload', verifyToken, async (req, res) => {
       return res.status(400).json({ message: 'Title and content are required' });
     }
 
-    // Create a Google Doc
     const fileMetadata = {
       name: title,
       mimeType: 'application/vnd.google-apps.document'
     };
 
-    // Convert HTML content to Google Doc format
     const media = {
       mimeType: 'text/html',
       body: content
     };
 
-    const response = await drive.files.create({
+    const file = await drive.files.create({
       requestBody: fileMetadata,
       media: media,
       fields: 'id, name, webViewLink'
     });
 
-    res.json({
-      id: response.data.id,
-      name: response.data.name,
-      webViewLink: response.data.webViewLink
-    });
+    res.json(file.data);
   } catch (error) {
     console.error('Error creating file:', error);
-    res.status(500).json({ 
-      message: 'Failed to create file',
-      details: error.message,
-      code: error.code 
-    });
+    res.status(500).json({ message: 'Failed to create file' });
   }
 });
 
@@ -224,15 +200,11 @@ router.get('/storage', verifyToken, async (req, res) => {
     const { storageQuota } = response.data;
     res.json({
       used: parseInt(storageQuota.usage || 0),
-      limit: parseInt(storageQuota.limit || 0)
+      limit: parseInt(storageQuota.limit || 15 * 1024 * 1024 * 1024) // Default 15GB
     });
   } catch (error) {
     console.error('Error getting storage info:', error);
-    res.status(500).json({ 
-      message: 'Failed to get storage information',
-      details: error.message,
-      code: error.code 
-    });
+    res.status(500).json({ message: 'Failed to get storage information' });
   }
 });
 

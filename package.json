@@ -1,14 +1,30 @@
 {
   "name": "letter-app",
   "version": "1.0.0",
-  "description": "Letter App - A full-stack application",
+  "description": "Letter App with Server and Client",
+  "main": "server/app.js",
   "scripts": {
-    "start": "cd server && npm start",
-    "dev": "cd server && npm run dev",
-    "client": "cd client && npm start",
-    "install:all": "npm install && cd server && npm install && cd ../client && npm install"
+    "start": "node server/app.js",
+    "dev": "nodemon server/app.js",
+    "install": "cd server && npm install"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "connect-sqlite3": "^0.9.15",
+    "cors": "^2.8.5",
+    "dotenv": "^16.0.3",
+    "express": "^4.18.2",
+    "express-session": "^1.17.3",
+    "google-auth-library": "^8.7.0",
+    "googleapis": "^118.0.0",
+    "jsonwebtoken": "^9.0.0",
+    "sequelize": "^6.31.0",
+    "sqlite3": "^5.1.6"
   },
   "devDependencies": {
-    "nodemon": "2.0.22"
+    "nodemon": "^2.0.22"
+  },
+  "engines": {
+    "node": ">=14.0.0"
   }
 } 
