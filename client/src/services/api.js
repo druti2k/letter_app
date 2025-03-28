@@ -16,80 +16,33 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  withCredentials: true, // Enable sending cookies
-  timeout: 10000, // 10 second timeout
+  withCredentials: true,
 });
 
 // Request interceptor
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token');
-    
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
-    
-    // Log request details in development
-    if (process.env.NODE_ENV === 'development') {
-      console.log('API Request:', {
-        url: config.url,
-        method: config.method,
-        hasToken: !!token,
-        baseURL: config.baseURL
-      });
-    }
-    
     return config;
-  }, 
+  },
   (error) => {
-    console.error('Request interceptor error:', error);
     return Promise.reject(error);
   }
 );
 
 // Response interceptor
 api.interceptors.response.use(
-  (response) => {
-    // Log response in development
-    if (process.env.NODE_ENV === 'development') {
-      console.log('API Response:', {
-        url: response.config.url,
-        status: response.status,
-        data: response.data
-      });
-    }
-    return response;
-  },
+  (response) => response,
   (error) => {
-    // Log error details
-    console.error('API Error:', {
-      url: error.config?.url,
-      method: error.config?.method,
-      status: error.response?.status,
-      message: error.message,
-      data: error.response?.data
-    });
-
-    // Handle specific error cases
     if (error.response?.status === 401) {
-      // Only handle 401 for non-auth endpoints
       if (!error.config.url.startsWith('/api/auth/')) {
         localStorage.removeItem('token');
-        // Use replace to prevent back navigation to unauthorized page
         window.location.replace('/login');
       }
     }
-
-    // Network errors
-    if (!error.response) {
-      error.message = 'Network error. Please check your connection.';
-    }
-
-    // Timeout errors
-    if (error.code === 'ECONNABORTED') {
-      error.message = 'Request timed out. Please try again.';
-    }
-
     return Promise.reject(error);
   }
 );
