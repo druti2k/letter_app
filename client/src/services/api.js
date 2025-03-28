@@ -1,7 +1,15 @@
 import axios from 'axios';
 
+// Determine the base URL based on the environment
+const getBaseUrl = () => {
+  if (process.env.NODE_ENV === 'development') {
+    return 'http://localhost:3001';
+  }
+  return 'https://letter-app-api-production.up.railway.app/';
+};
+
 const api = axios.create({
-  baseURL: process.env.REACT_APP_API_URL || 'http://localhost:3001',
+  baseURL: getBaseUrl(),
   headers: {
     'Content-Type': 'application/json',
   },
