@@ -1,11 +1,8 @@
-node_modules
+node_modules/
 npm-debug.log
 .env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-.git
-.gitignore
+.env.*
 *.sqlite
-*.sqlite-journal 
+*.sqlite-journal
+.git/
+.gitignore 

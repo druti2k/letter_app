@@ -3,15 +3,11 @@ FROM node:18-slim
 # Create app directory
 WORKDIR /usr/src/app
 
-# Copy package.json and package-lock.json
-COPY package.json ./
-COPY package-lock.json ./
+# Copy server directory contents
+COPY . .
 
 # Install app dependencies
 RUN npm install --only=production
-
-# Bundle app source
-COPY . .
 
 # Set environment variables
 ENV NODE_ENV=production
