@@ -56,10 +56,17 @@ api.interceptors.response.use(
 
     // Handle specific error cases
     if (error.response?.status === 401) {
-      // Only clear token if it's not an auth endpoint
-      if (!error.config.url.startsWith('/api/auth/')) {
+      // Check if token exists and it's not an auth endpoint
+      const token = localStorage.getItem('token');
+      const isAuthEndpoint = error.config.url.includes('/api/auth/');
+      
+      if (token && !isAuthEndpoint) {
+        // Clear token and redirect to login
         localStorage.removeItem('token');
-        window.location.replace('/login');
+        // Use a more reliable way to redirect
+        if (window.location.pathname !== '/login') {
+          window.location.href = '/login';
+        }
       }
     }
 
@@ -68,9 +75,36 @@ api.interceptors.response.use(
 );
 
 // Auth API calls
-export const register = (data) => api.post('/api/auth/register', data);
-export const login = (data) => api.post('/api/auth/login', data);
-export const verifyToken = () => api.get('/api/auth/verify');
+export const register = async (data) => {
+  const response = await api.post('/api/auth/register', data);
+  if (response.data.token) {
+    localStorage.setItem('token', response.data.token);
+  }
+  return response;
+};
+
+export const login = async (data) => {
+  const response = await api.post('/api/auth/login', data);
+  if (response.data.token) {
+    localStorage.setItem('token', response.data.token);
+  }
+  return response;
+};
+
+export const verifyToken = async () => {
+  try {
+    const response = await api.get('/api/auth/verify');
+    return response;
+  } catch (error) {
+    localStorage.removeItem('token');
+    throw error;
+  }
+};
+
+export const logout = () => {
+  localStorage.removeItem('token');
+  window.location.href = '/login';
+};
 
 // Letter API calls
 export const getLetters = () => api.get('/api/letters');

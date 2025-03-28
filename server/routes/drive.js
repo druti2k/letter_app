@@ -5,20 +5,49 @@ const { google } = require('googleapis');
 const User = require('../models/user');
 
 // JWT token verification middleware
-const verifyToken = (req, res, next) => {
+const verifyToken = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
     
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({ message: 'Token is missing' });
+      return res.status(401).json({ 
+        message: 'Authentication required',
+        code: 'AUTH_REQUIRED'
+      });
     }
     
     const token = authHeader.split(' ')[1];
     const decoded = jwt.verify(token, process.env.SECRET_KEY);
+    
+    // Check if user still exists and is active
+    const user = await User.findByPk(decoded.id);
+    if (!user) {
+      return res.status(401).json({ 
+        message: 'User no longer exists',
+        code: 'USER_NOT_FOUND'
+      });
+    }
+
     req.user = decoded;
     next();
   } catch (err) {
-    return res.status(401).json({ message: 'Invalid token' });
+    console.error('Token verification error:', err);
+    if (err.name === 'TokenExpiredError') {
+      return res.status(401).json({ 
+        message: 'Token has expired',
+        code: 'TOKEN_EXPIRED'
+      });
+    }
+    if (err.name === 'JsonWebTokenError') {
+      return res.status(401).json({ 
+        message: 'Invalid token',
+        code: 'INVALID_TOKEN'
+      });
+    }
+    return res.status(401).json({ 
+      message: 'Authentication failed',
+      code: 'AUTH_FAILED'
+    });
   }
 };
 
