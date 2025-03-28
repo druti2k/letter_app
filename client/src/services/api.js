@@ -56,17 +56,37 @@ api.interceptors.response.use(
 
     // Handle specific error cases
     if (error.response?.status === 401) {
-      // Check if token exists and it's not an auth endpoint
+      const errorCode = error.response?.data?.code;
       const token = localStorage.getItem('token');
       const isAuthEndpoint = error.config.url.includes('/api/auth/');
       
-      if (token && !isAuthEndpoint) {
-        // Clear token and redirect to login
-        localStorage.removeItem('token');
-        // Use a more reliable way to redirect
-        if (window.location.pathname !== '/login') {
-          window.location.href = '/login';
-        }
+      // Handle different types of auth errors
+      switch (errorCode) {
+        case 'GOOGLE_AUTH_REQUIRED':
+          // Redirect to Google auth
+          window.location.href = `${getBaseUrl()}/api/auth/google`;
+          break;
+        case 'GOOGLE_REAUTH_REQUIRED':
+          // Force reauthorization with Google
+          window.location.href = `${getBaseUrl()}/api/auth/google?prompt=consent`;
+          break;
+        case 'TOKEN_EXPIRED':
+        case 'INVALID_TOKEN':
+        case 'AUTH_FAILED':
+          if (token && !isAuthEndpoint) {
+            localStorage.removeItem('token');
+            if (window.location.pathname !== '/login') {
+              window.location.href = '/login';
+            }
+          }
+          break;
+        default:
+          if (token && !isAuthEndpoint) {
+            localStorage.removeItem('token');
+            if (window.location.pathname !== '/login') {
+              window.location.href = '/login';
+            }
+          }
       }
     }
 
@@ -104,6 +124,15 @@ export const verifyToken = async () => {
 export const logout = () => {
   localStorage.removeItem('token');
   window.location.href = '/login';
+};
+
+// Google Auth
+export const connectGoogle = () => {
+  window.location.href = `${getBaseUrl()}/api/auth/google`;
+};
+
+export const reconnectGoogle = () => {
+  window.location.href = `${getBaseUrl()}/api/auth/google?prompt=consent`;
 };
 
 // Letter API calls

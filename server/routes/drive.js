@@ -28,7 +28,7 @@ const verifyToken = async (req, res, next) => {
       });
     }
 
-    req.user = decoded;
+    req.user = user; // Store full user object instead of just decoded token
     next();
   } catch (err) {
     console.error('Token verification error:', err);
@@ -52,33 +52,47 @@ const verifyToken = async (req, res, next) => {
 };
 
 // Initialize Google Drive API client
-const getDriveClient = async (userId) => {
+const getDriveClient = async (user) => {
   try {
-    const user = await User.findByPk(userId);
     if (!user || !user.google_access_token) {
-      throw new Error('User not found or not authenticated with Google');
+      throw new Error({
+        message: 'Google authentication required',
+        code: 'GOOGLE_AUTH_REQUIRED'
+      });
     }
 
     const oauth2Client = new google.auth.OAuth2(
       process.env.GOOGLE_CLIENT_ID,
       process.env.GOOGLE_CLIENT_SECRET,
-      `${process.env.SERVER_URL}/api/auth/google/callback`
+      process.env.GOOGLE_REDIRECT_URI || `${process.env.SERVER_URL}/api/auth/google/callback`
     );
 
     oauth2Client.setCredentials({
       access_token: user.google_access_token,
-      refresh_token: user.google_refresh_token
+      refresh_token: user.google_refresh_token,
+      expiry_date: user.google_token_expiry
     });
 
     // Handle token refresh
     oauth2Client.on('tokens', async (tokens) => {
       try {
-        await user.update({
+        const updates = {
           google_access_token: tokens.access_token,
-          google_refresh_token: tokens.refresh_token || user.google_refresh_token
-        });
+          google_token_expiry: tokens.expiry_date
+        };
+        
+        // Only update refresh token if we got a new one
+        if (tokens.refresh_token) {
+          updates.google_refresh_token = tokens.refresh_token;
+        }
+        
+        await user.update(updates);
       } catch (error) {
-        console.error('Failed to update tokens:', error);
+        console.error('Failed to update Google tokens:', error);
+        throw new Error({
+          message: 'Failed to refresh Google tokens',
+          code: 'TOKEN_REFRESH_FAILED'
+        });
       }
     });
 
@@ -95,7 +109,7 @@ const getDriveClient = async (userId) => {
 // List files
 router.get('/files', verifyToken, async (req, res) => {
   try {
-    const drive = await getDriveClient(req.user.id);
+    const drive = await getDriveClient(req.user);
     const response = await drive.files.list({
       pageSize: 10,
       fields: 'files(id, name, mimeType, webViewLink, modifiedTime)',
@@ -107,20 +121,29 @@ router.get('/files', verifyToken, async (req, res) => {
     res.json({ files: response.data.files || [] });
   } catch (error) {
     console.error('Error listing files:', error);
-    if (error.message.includes('not authenticated')) {
-      return res.status(401).json({ 
-        message: 'Please reconnect your Google account',
-        code: 'REAUTH_REQUIRED'
+    if (error.code === 'GOOGLE_AUTH_REQUIRED') {
+      return res.status(401).json({
+        message: 'Please connect your Google account',
+        code: 'GOOGLE_AUTH_REQUIRED'
       });
     }
-    res.status(500).json({ message: 'Failed to list files' });
+    if (error.code === 401 || error.message?.includes('invalid_grant')) {
+      return res.status(401).json({
+        message: 'Please reconnect your Google account',
+        code: 'GOOGLE_REAUTH_REQUIRED'
+      });
+    }
+    res.status(500).json({ 
+      message: 'Failed to list files',
+      code: 'DRIVE_LIST_ERROR'
+    });
   }
 });
 
 // Get file content
 router.get('/files/:fileId', verifyToken, async (req, res) => {
   try {
-    const drive = await getDriveClient(req.user.id);
+    const drive = await getDriveClient(req.user);
     const response = await drive.files.export({
       fileId: req.params.fileId,
       mimeType: 'text/plain'
@@ -129,10 +152,15 @@ router.get('/files/:fileId', verifyToken, async (req, res) => {
     res.json({ content: response.data });
   } catch (error) {
     console.error('Error getting file:', error);
+    if (error.code === 'GOOGLE_AUTH_REQUIRED') {
+      return res.status(401).json({
+        message: 'Please connect your Google account',
+        code: 'GOOGLE_AUTH_REQUIRED'
+      });
+    }
     res.status(500).json({ 
       message: 'Failed to get file content',
-      details: error.message,
-      code: error.code 
+      code: 'DRIVE_GET_ERROR'
     });
   }
 });
@@ -140,11 +168,14 @@ router.get('/files/:fileId', verifyToken, async (req, res) => {
 // Create new file
 router.post('/upload', verifyToken, async (req, res) => {
   try {
-    const drive = await getDriveClient(req.user.id);
+    const drive = await getDriveClient(req.user);
     const { title, content } = req.body;
 
     if (!title || !content) {
-      return res.status(400).json({ message: 'Title and content are required' });
+      return res.status(400).json({ 
+        message: 'Title and content are required',
+        code: 'INVALID_INPUT'
+      });
     }
 
     const fileMetadata = {
@@ -166,14 +197,23 @@ router.post('/upload', verifyToken, async (req, res) => {
     res.json(file.data);
   } catch (error) {
     console.error('Error creating file:', error);
-    res.status(500).json({ message: 'Failed to create file' });
+    if (error.code === 'GOOGLE_AUTH_REQUIRED') {
+      return res.status(401).json({
+        message: 'Please connect your Google account',
+        code: 'GOOGLE_AUTH_REQUIRED'
+      });
+    }
+    res.status(500).json({ 
+      message: 'Failed to create file',
+      code: 'DRIVE_CREATE_ERROR'
+    });
   }
 });
 
 // Update file
 router.put('/files/:fileId', verifyToken, async (req, res) => {
   try {
-    const drive = await getDriveClient(req.user.id);
+    const drive = await getDriveClient(req.user);
     const { content } = req.body;
 
     if (!content) {
@@ -202,7 +242,7 @@ router.put('/files/:fileId', verifyToken, async (req, res) => {
 // Delete file
 router.delete('/files/:fileId', verifyToken, async (req, res) => {
   try {
-    const drive = await getDriveClient(req.user.id);
+    const drive = await getDriveClient(req.user);
     await drive.files.delete({
       fileId: req.params.fileId
     });
@@ -221,7 +261,7 @@ router.delete('/files/:fileId', verifyToken, async (req, res) => {
 // Get storage information
 router.get('/storage', verifyToken, async (req, res) => {
   try {
-    const drive = await getDriveClient(req.user.id);
+    const drive = await getDriveClient(req.user);
     const response = await drive.about.get({
       fields: 'storageQuota'
     });
@@ -233,7 +273,16 @@ router.get('/storage', verifyToken, async (req, res) => {
     });
   } catch (error) {
     console.error('Error getting storage info:', error);
-    res.status(500).json({ message: 'Failed to get storage information' });
+    if (error.code === 'GOOGLE_AUTH_REQUIRED') {
+      return res.status(401).json({
+        message: 'Please connect your Google account',
+        code: 'GOOGLE_AUTH_REQUIRED'
+      });
+    }
+    res.status(500).json({ 
+      message: 'Failed to get storage information',
+      code: 'DRIVE_STORAGE_ERROR'
+    });
   }
 });
 
