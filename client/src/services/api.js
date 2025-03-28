@@ -5,7 +5,7 @@ const getBaseUrl = () => {
   if (process.env.NODE_ENV === 'development') {
     return 'http://localhost:3001';
   }
-  return 'https://letter-app-api-production.up.railway.app/';
+  return 'https://letter-app-api-production.up.railway.app';
 };
 
 const api = axios.create({
@@ -18,14 +18,18 @@ const api = axios.create({
 
 // Add token to requests if it exists
 api.interceptors.request.use((config) => {
+  // Don't add token for auth endpoints except verify
+  const isAuthEndpoint = config.url.startsWith('/api/auth/') && !config.url.includes('/verify');
   const token = localStorage.getItem('token');
-  if (token) {
+  
+  if (token && !isAuthEndpoint) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+  
   console.log('Making request:', {
     url: config.url,
     method: config.method,
-    headers: config.headers,
+    hasToken: !!config.headers.Authorization,
     data: config.data
   });
   return config;
@@ -50,10 +54,14 @@ api.interceptors.response.use(
       message: error.message
     });
 
-    if (error.response?.status === 401) {
-      // Handle unauthorized access
+    // Only handle 401 errors for non-auth endpoints
+    if (error.response?.status === 401 && !error.config.url.startsWith('/api/auth/')) {
+      console.log('Unauthorized access, clearing token');
       localStorage.removeItem('token');
-      window.location.href = '/login';
+      // Use window.location.replace to prevent adding to history
+      if (!window.location.pathname.includes('/login')) {
+        window.location.replace('/login');
+      }
     }
     return Promise.reject(error);
   }

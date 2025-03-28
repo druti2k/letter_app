@@ -25,11 +25,11 @@ export const AuthProvider = ({ children }) => {
         console.log('No token found in localStorage');
         setIsAuthenticated(false);
         setUser(null);
+        setLoading(false);
         return;
       }
 
       console.log('Token found, verifying...');
-      api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
       
       const response = await api.get('/api/auth/verify');
       console.log('Verify response:', response.data);
@@ -44,7 +44,10 @@ export const AuthProvider = ({ children }) => {
       }
     } catch (error) {
       console.error('Auth check failed:', error.response?.data || error.message);
-      logout();
+      // Only logout if it's a 401 error
+      if (error.response?.status === 401) {
+        logout();
+      }
     } finally {
       setLoading(false);
     }
@@ -62,21 +65,21 @@ export const AuthProvider = ({ children }) => {
         throw new Error('Missing token or user data');
       }
 
-      // Store token and set headers
+      // Store token first
       localStorage.setItem('token', token);
-      api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
       
-      // Verify token immediately
-      console.log('Verifying token...');
+      // Set user data immediately to prevent flicker
+      setUser(userData);
+      setIsAuthenticated(true);
+      
+      // Verify token in background
       const response = await api.get('/api/auth/verify');
       
-      if (!response.data.isValid || !response.data.user) {
+      if (!response.data.isValid) {
         throw new Error('Token verification failed');
       }
       
-      console.log('Token verified successfully');
-      setIsAuthenticated(true);
-      setUser(response.data.user);
+      console.log('Login successful');
       return true;
     } catch (error) {
       console.error('Login failed:', error.response?.data || error.message);
@@ -87,14 +90,14 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const logout = () => {
+  const logout = useCallback(() => {
     console.log('Logging out user...');
     localStorage.removeItem('token');
     delete api.defaults.headers.common['Authorization'];
     setIsAuthenticated(false);
     setUser(null);
     setLoading(false);
-  };
+  }, []);
 
   const value = {
     isAuthenticated,
