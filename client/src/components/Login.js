@@ -37,6 +37,8 @@ const Login = () => {
   }, [location]);
 
   const handleGoogleLogin = () => {
+    console.log('Starting Google OAuth flow');
+    console.log('Redirecting to:', `${process.env.REACT_APP_API_URL}/api/auth/google`);
     window.location.href = `${process.env.REACT_APP_API_URL}/api/auth/google`;
   };
 

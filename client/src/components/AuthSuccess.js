@@ -1,19 +1,20 @@
 import React, { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Box, CircularProgress, Typography } from '@mui/material';
 
 const AuthSuccess = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { login } = useAuth();
 
   useEffect(() => {
     const handleAuthSuccess = async () => {
       try {
-        console.log('Processing auth success...');
+        console.log('Processing auth success...', location.search);
         
         // Get token from URL
-        const params = new URLSearchParams(window.location.search);
+        const params = new URLSearchParams(location.search);
         const token = params.get('token');
         const error = params.get('error');
         const details = params.get('details');
@@ -28,7 +29,7 @@ const AuthSuccess = () => {
           console.error('Auth error:', { error, details });
           navigate('/login', { 
             replace: true,
-            state: { error: `Authentication failed: ${error}` }
+            state: { error: `Authentication failed: ${error}${details ? `: ${details}` : ''}` }
           });
           return;
         }
@@ -54,21 +55,17 @@ const AuthSuccess = () => {
             hasName: !!payload.name
           });
 
-          if (!payload.id || !payload.email || !payload.name) {
-            throw new Error('Invalid token payload');
-          }
+          // Clean up URL
+          window.history.replaceState({}, document.title, '/auth/success');
 
-          // Clean up URL before login attempt
-          window.history.replaceState({}, document.title, window.location.pathname);
-
-          // Attempt login
+          // Login
           await login(token, {
             id: payload.id,
             email: payload.email,
             name: payload.name
           });
 
-          console.log('Login successful');
+          console.log('Login successful, redirecting to dashboard');
           navigate('/dashboard', { replace: true });
         } catch (decodeError) {
           console.error('Token processing error:', decodeError);
@@ -87,7 +84,7 @@ const AuthSuccess = () => {
     };
 
     handleAuthSuccess();
-  }, [login, navigate]);
+  }, [login, navigate, location]);
 
   return (
     <Box
