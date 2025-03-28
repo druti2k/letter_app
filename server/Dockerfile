@@ -11,33 +11,20 @@ RUN apt-get update && \
     && rm -rf /var/lib/apt/lists/*
 
 # Set working directory
-WORKDIR /app
+WORKDIR /usr/src/app
 
-# Debug: Show build context
-RUN pwd && \
-    echo "Build context before copy:"
-
-# Copy files explicitly
-COPY package*.json ./
-COPY app.js ./
-COPY routes ./routes
-COPY models ./models
-COPY services ./services
-
-# Debug: Show copied files
-RUN echo "Files in /app:" && \
-    ls -la /app && \
-    echo "\nContents of current directory:" && \
-    ls -la ./ && \
-    echo "\nFull path of app.js:" && \
-    find / -name app.js 2>/dev/null
+# Copy package files
+COPY server/package*.json ./
 
 # Install dependencies
 RUN npm install
 
+# Copy application files
+COPY server/ ./
+
 # Create data directory
 RUN mkdir -p /data && \
-    chown -R node:node /data /app
+    chown -R node:node /data /usr/src/app
 
 # Set environment variables
 ENV NODE_ENV=production
@@ -48,5 +35,5 @@ USER node
 
 EXPOSE 3001
 
-# Start the app with full path
-CMD ["node", "./app.js"] 
+# Start the app
+CMD ["node", "app.js"] 
