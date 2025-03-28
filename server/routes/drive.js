@@ -213,4 +213,27 @@ router.delete('/files/:fileId', verifyToken, async (req, res) => {
   }
 });
 
+// Get storage information
+router.get('/storage', verifyToken, async (req, res) => {
+  try {
+    const drive = await getDriveClient(req.user.id);
+    const response = await drive.about.get({
+      fields: 'storageQuota'
+    });
+
+    const { storageQuota } = response.data;
+    res.json({
+      used: parseInt(storageQuota.usage || 0),
+      limit: parseInt(storageQuota.limit || 0)
+    });
+  } catch (error) {
+    console.error('Error getting storage info:', error);
+    res.status(500).json({ 
+      message: 'Failed to get storage information',
+      details: error.message,
+      code: error.code 
+    });
+  }
+});
+
 module.exports = router; 

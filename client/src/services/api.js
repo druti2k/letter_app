@@ -78,10 +78,13 @@ export const getLetter = (id) => api.get(`/api/letters/${id}`);
 export const createLetter = (data) => api.post('/api/letters', data);
 export const updateLetter = (id, data) => api.put(`/api/letters/${id}`, data);
 export const deleteLetter = (id) => api.delete(`/api/letters/${id}`);
+export const getLettersCount = () => api.get('/api/letters/count');
+export const getRecentLetters = () => api.get('/api/letters/recent');
 
 // Google Drive API calls
 export const uploadToDrive = (data) => api.post('/api/drive/upload', data);
 export const getFilesFromDrive = () => api.get('/api/drive/files');
 export const getFileFromDrive = (fileId) => api.get(`/api/drive/files/${fileId}`);
+export const getDriveStorage = () => api.get('/api/drive/storage');
 
 export { api }; 

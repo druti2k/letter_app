@@ -20,7 +20,13 @@ import {
 } from '@mui/icons-material';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { api } from '../services/api';
+import { 
+  api, 
+  getLettersCount, 
+  getFilesFromDrive, 
+  getRecentLetters, 
+  getDriveStorage 
+} from '../services/api';
 
 const StatCard = ({ title, value, icon, color, loading }) => (
   <motion.div
@@ -112,30 +118,49 @@ const Dashboard = () => {
       
       // Fetch all stats in parallel for better performance
       const [lettersResponse, driveResponse, recentResponse, storageResponse] = await Promise.all([
-        api.get('/api/letters/count'),
-        api.get('/api/drive/files'),
-        api.get('/api/letters/recent'),
-        api.get('/api/drive/storage')
-      ]);
+        getLettersCount(),
+        getFilesFromDrive(),
+        getRecentLetters(),
+        getDriveStorage()
+      ]).catch(error => {
+        throw new Error(`Failed to fetch data: ${error.response?.data?.message || error.message}`);
+      });
+      
+      // Validate responses
+      if (!lettersResponse?.data?.count && lettersResponse?.data?.count !== 0) {
+        throw new Error('Invalid response from letters count endpoint');
+      }
+
+      if (!Array.isArray(driveResponse?.data?.files)) {
+        throw new Error('Invalid response from drive files endpoint');
+      }
+
+      if (!Array.isArray(recentResponse?.data?.letters)) {
+        throw new Error('Invalid response from recent letters endpoint');
+      }
+
+      if (!storageResponse?.data?.used && storageResponse?.data?.used !== 0) {
+        throw new Error('Invalid response from storage endpoint');
+      }
       
       setStats({
         totalLetters: lettersResponse.data.count,
-        driveFiles: driveResponse.data.files?.length || 0,
-        recentActivity: recentResponse.data.letters?.length || 0,
-        lastUpdated: recentResponse.data.letters?.[0]?.updatedAt,
-        storageUsed: storageResponse.data.used || 0,
-        storageLimit: storageResponse.data.limit || 0
+        driveFiles: driveResponse.data.files.length,
+        recentActivity: recentResponse.data.letters.length,
+        lastUpdated: recentResponse.data.letters[0]?.updatedAt,
+        storageUsed: storageResponse.data.used,
+        storageLimit: storageResponse.data.limit || 1 // Prevent division by zero
       });
 
       // Sort recent items by date and limit to 5
-      const sortedItems = (recentResponse.data.letters || [])
+      const sortedItems = recentResponse.data.letters
         .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt))
         .slice(0, 5);
       
       setRecentItems(sortedItems);
     } catch (error) {
       console.error('Error fetching stats:', error);
-      setError(error.response?.data?.message || 'Failed to fetch dashboard data');
+      setError(error.message || 'Failed to fetch dashboard data');
       
       if (error.response?.status === 401) {
         navigate('/login');
