@@ -96,19 +96,33 @@ api.interceptors.response.use(
 
 // Auth API calls
 export const register = async (data) => {
-  const response = await api.post('/api/auth/register', data);
-  if (response.data.token) {
-    localStorage.setItem('token', response.data.token);
+  try {
+    const response = await api.post('/api/auth/register', data);
+    if (response.data.token) {
+      localStorage.setItem('token', response.data.token);
+      // Ensure we redirect to dashboard after successful registration
+      window.location.href = '/dashboard';
+    }
+    return response;
+  } catch (error) {
+    console.error('Registration error:', error);
+    throw error;
   }
-  return response;
 };
 
 export const login = async (data) => {
-  const response = await api.post('/api/auth/login', data);
-  if (response.data.token) {
-    localStorage.setItem('token', response.data.token);
+  try {
+    const response = await api.post('/api/auth/login', data);
+    if (response.data.token) {
+      localStorage.setItem('token', response.data.token);
+      // Ensure consistent behavior with registration
+      window.location.href = '/dashboard';
+    }
+    return response;
+  } catch (error) {
+    console.error('Login error:', error);
+    throw error;
   }
-  return response;
 };
 
 export const verifyToken = async () => {
